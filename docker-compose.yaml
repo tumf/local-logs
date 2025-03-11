@@ -1,0 +1,39 @@
+services:
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "9022:3100"
+    volumes:
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "9021:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+      #      - GF_INSTALL_PLUGINS=grafana-loki
+      - GF_SERVER_ROOT_URL=http://localhost:9020
+      # Remove subpath settings
+      - GF_LOG_LEVEL=debug
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "9020:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - loki
+      - grafana
+
+volumes:
+  loki_data:
+  grafana_data:
