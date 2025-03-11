@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket to Loki Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 8px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        #logMessages {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebSocket to Loki Example</h1>
+
+        <div class="card">
+            <h2>Connection</h2>
+            <div class="form-group">
+                <label for="wsUrl">WebSocket URL:</label>
+                <input type="text" id="wsUrl" value="ws://localhost:9023" />
+            </div>
+            <button id="connectBtn">Connect</button>
+            <button id="disconnectBtn" disabled>Disconnect</button>
+            <div id="connectionStatus" class="status disconnected">Disconnected</div>
+        </div>
+
+        <div class="card">
+            <h2>Send Log</h2>
+            <div class="form-group">
+                <label for="logFormat">Log Format:</label>
+                <select id="logFormat">
+                    <option value="simple">Simple Text</option>
+                    <option value="json">JSON</option>
+                    <option value="loki">Loki Format</option>
+                </select>
+            </div>
+
+            <div id="simpleLogForm">
+                <div class="form-group">
+                    <label for="logLevel">Log Level:</label>
+                    <select id="logLevel">
+                        <option value="info">Info</option>
+                        <option value="warn">Warning</option>
+                        <option value="error">Error</option>
+                        <option value="debug">Debug</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="logSource">Log Source:</label>
+                    <input type="text" id="logSource" value="websocket-client" />
+                </div>
+                <div class="form-group">
+                    <label for="logMessage">Message:</label>
+                    <textarea id="logMessage" rows="3">This is a test log message</textarea>
+                </div>
+            </div>
+
+            <div id="jsonLogForm" style="display:none;">
+                <div class="form-group">
+                    <label for="jsonLog">JSON Log:</label>
+                    <textarea id="jsonLog" rows="6">{
+  "level": "info",
+  "message": "This is a test log message",
+  "source": "websocket-client",
+  "timestamp": "2023-01-01T12:00:00Z"
+}</textarea>
+                </div>
+            </div>
+
+            <div id="lokiLogForm" style="display:none;">
+                <div class="form-group">
+                    <label for="lokiLog">Loki Format Log:</label>
+                    <textarea id="lokiLog" rows="12">{
+  "streams": [
+    {
+      "stream": {
+        "app": "websocket-client",
+        "level": "info"
+      },
+      "values": [
+        ["1609502400000000000", "This is a test log message"]
+      ]
+    }
+  ]
+}</textarea>
+                </div>
+            </div>
+
+            <button id="sendLogBtn" disabled>Send Log</button>
+        </div>
+
+        <div class="card">
+            <h2>Log History</h2>
+            <div id="logMessages"></div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+
+        // DOM Elements
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const sendLogBtn = document.getElementById('sendLogBtn');
+        const wsUrlInput = document.getElementById('wsUrl');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const logFormat = document.getElementById('logFormat');
+        const simpleLogForm = document.getElementById('simpleLogForm');
+        const jsonLogForm = document.getElementById('jsonLogForm');
+        const lokiLogForm = document.getElementById('lokiLogForm');
+        const logMessages = document.getElementById('logMessages');
+
+        // Event Listeners
+        connectBtn.addEventListener('click', connectWebSocket);
+        disconnectBtn.addEventListener('click', disconnectWebSocket);
+        sendLogBtn.addEventListener('click', sendLog);
+        logFormat.addEventListener('change', toggleLogForm);
+
+        function toggleLogForm() {
+            const format = logFormat.value;
+            simpleLogForm.style.display = format === 'simple' ? 'block' : 'none';
+            jsonLogForm.style.display = format === 'json' ? 'block' : 'none';
+            lokiLogForm.style.display = format === 'loki' ? 'block' : 'none';
+        }
+
+        function connectWebSocket() {
+            try {
+                const wsUrl = wsUrlInput.value;
+                socket = new WebSocket(wsUrl);
+
+                socket.onopen = function(e) {
+                    connectionStatus.textContent = 'Connected';
+                    connectionStatus.className = 'status connected';
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    sendLogBtn.disabled = false;
+                    addLogEntry('Connected to WebSocket server');
+                };
+
+                socket.onmessage = function(event) {
+                    const response = JSON.parse(event.data);
+                    addLogEntry(`Received response: ${JSON.stringify(response)}`);
+                };
+
+                socket.onclose = function(event) {
+                    if (event.wasClean) {
+                        addLogEntry(`Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+                    } else {
+                        addLogEntry('Connection died');
+                    }
+                    resetConnectionState();
+                };
+
+                socket.onerror = function(error) {
+                    addLogEntry(`Error: ${error.message}`);
+                    resetConnectionState();
+                };
+            } catch (error) {
+                addLogEntry(`Failed to connect: ${error.message}`);
+                resetConnectionState();
+            }
+        }
+
+        function disconnectWebSocket() {
+            if (socket) {
+                socket.close();
+                resetConnectionState();
+            }
+        }
+
+        function resetConnectionState() {
+            connectionStatus.textContent = 'Disconnected';
+            connectionStatus.className = 'status disconnected';
+            connectBtn.disabled = false;
+            disconnectBtn.disabled = true;
+            sendLogBtn.disabled = true;
+            socket = null;
+        }
+
+        function sendLog() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                addLogEntry('Not connected to WebSocket server');
+                return;
+            }
+
+            try {
+                let logData;
+                const format = logFormat.value;
+
+                if (format === 'simple') {
+                    const level = document.getElementById('logLevel').value;
+                    const source = document.getElementById('logSource').value;
+                    const message = document.getElementById('logMessage').value;
+
+                    // Create a timestamp in nanoseconds since epoch
+                    const timestamp = BigInt(Date.now()) * BigInt(1000000);
+
+                    logData = {
+                        streams: [
+                            {
+                                stream: {
+                                    level: level,
+                                    source: source
+                                },
+                                values: [
+                                    [timestamp.toString(), message]
+                                ]
+                            }
+                        ]
+                    };
+                } else if (format === 'json') {
+                    logData = JSON.parse(document.getElementById('jsonLog').value);
+                } else if (format === 'loki') {
+                    logData = JSON.parse(document.getElementById('lokiLog').value);
+                }
+
+                socket.send(JSON.stringify(logData));
+                addLogEntry(`Sent log: ${JSON.stringify(logData)}`);
+            } catch (error) {
+                addLogEntry(`Error sending log: ${error.message}`);
+            }
+        }
+
+        function addLogEntry(message) {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+
+            const timestamp = new Date().toISOString();
+            entry.textContent = `[${timestamp}] ${message}`;
+
+            logMessages.prepend(entry);
+        }
+    </script>
+</body>
+</html>

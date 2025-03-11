@@ -23,6 +23,20 @@ services:
       # Remove subpath settings
       - GF_LOG_LEVEL=debug
 
+  websocket:
+    build:
+      context: ./websocket
+      dockerfile: Dockerfile
+    container_name: websocket
+    ports:
+      - "9023:8765"
+    environment:
+      - LOKI_URL=http://loki:3100/loki/api/v1/push
+      - WEBSOCKET_HOST=0.0.0.0
+      - WEBSOCKET_PORT=8765
+    depends_on:
+      - loki
+
   nginx:
     image: nginx:latest
     container_name: nginx
@@ -33,6 +47,7 @@ services:
     depends_on:
       - loki
       - grafana
+      - websocket
 
 volumes:
   loki_data:
