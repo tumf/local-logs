@@ -41,31 +41,31 @@ export const logger = createWebSocketLogger({
 // console.logなどのメソッドをオーバーライド
 if (isDevelopment) {
   const originalConsole = { ...console };
-  
+
   // console.logのオーバーライド
   console.log = (...args) => {
     originalConsole.log(...args);
     logger.log('info', ...args);
   };
-  
+
   // console.errorのオーバーライド
   console.error = (...args) => {
     originalConsole.error(...args);
     logger.log('error', ...args);
   };
-  
+
   // console.warnのオーバーライド
   console.warn = (...args) => {
     originalConsole.warn(...args);
     logger.log('warn', ...args);
   };
-  
+
   // console.infoのオーバーライド
   console.info = (...args) => {
     originalConsole.info(...args);
     logger.log('info', ...args);
   };
-  
+
   // console.debugのオーバーライド
   console.debug = (...args) => {
     originalConsole.debug(...args);
@@ -127,7 +127,7 @@ import '../utils/logger'; // ロガーを初期化
 export default function LoggerInitializer() {
   useEffect(() => {
     console.log('WebSocket logger initialized');
-    
+
     // グローバルエラーハンドラーの設定
     const originalOnError = window.onerror;
     window.onerror = (message, source, lineno, colno, error) => {
@@ -137,7 +137,7 @@ export default function LoggerInitializer() {
       }
       return false;
     };
-    
+
     // Promiseエラーハンドラーの設定
     const originalOnUnhandledRejection = window.onunhandledrejection;
     window.onunhandledrejection = (event) => {
@@ -146,14 +146,14 @@ export default function LoggerInitializer() {
         originalOnUnhandledRejection(event);
       }
     };
-    
+
     return () => {
       // クリーンアップ
       window.onerror = originalOnError;
       window.onunhandledrejection = originalOnUnhandledRejection;
     };
   }, []);
-  
+
   return null; // UIは何も表示しない
 }
 ```
@@ -209,7 +209,7 @@ export function createWebSocketLogger(options: WebSocketLoggerOptions) {
         isConnected = true;
         reconnectAttempts = 0;
         flushLogs();
-        
+
         // 定期的にログをフラッシュする
         if (flushInterval) clearInterval(flushInterval);
         flushInterval = setInterval(flushLogs, options.batchInterval || 1000);
@@ -218,11 +218,11 @@ export function createWebSocketLogger(options: WebSocketLoggerOptions) {
       socket.onclose = () => {
         isConnected = false;
         if (flushInterval) clearInterval(flushInterval);
-        
+
         // 再接続ロジック
         const reconnectDelay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
         console.log(`[WebSocketLogger] Connection closed. Reconnecting in ${reconnectDelay}ms...`);
-        
+
         if (reconnectTimeout) clearTimeout(reconnectTimeout);
         reconnectTimeout = setTimeout(() => {
           reconnectAttempts++;
@@ -374,7 +374,7 @@ import logger from './src/utils/logger';
 export function middleware(request: NextRequest) {
   const start = Date.now();
   const requestId = crypto.randomUUID();
-  
+
   // リクエスト情報をログに記録
   logger.log('info', {
     type: 'request',
@@ -383,9 +383,9 @@ export function middleware(request: NextRequest) {
     url: request.url,
     headers: Object.fromEntries(request.headers),
   });
-  
+
   const response = NextResponse.next();
-  
+
   // レスポンス情報をログに記録
   const duration = Date.now() - start;
   logger.log('info', {
@@ -394,7 +394,7 @@ export function middleware(request: NextRequest) {
     status: response.status,
     duration,
   });
-  
+
   return response;
 }
 
@@ -464,4 +464,4 @@ export const logger = createWebSocketLogger({
 });
 ```
 
-これにより、本番環境ではWebSocketロギングが無効化されます。 
+これにより、本番環境ではWebSocketロギングが無効化されます。
