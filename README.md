@@ -98,7 +98,7 @@ To configure Loki as a data source in Grafana:
    - **Name**: Loki
    - **URL**:
 
-     - If using direct access: `http://loki:3100`
+     - If using direct access: `http://loki:3100` (recommend)
 
      - If using Nginx proxy: `http://localhost:9020/loki`
 
