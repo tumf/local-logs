@@ -2,6 +2,9 @@
 
 A local monitoring system using Grafana and Loki for log aggregation and visualization.
 
+* [My tech blog article](https://blog.tumf.dev/posts/diary/2025/3/13/local-grafana-loki-mcp-cursor/)
+
+
 ## Overview
 
 This project sets up a local environment for collecting, storing, and visualizing logs using:
